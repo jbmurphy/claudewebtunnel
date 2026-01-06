@@ -64,18 +64,18 @@ else
     echo "  Or run /start-tunnel manually" >&2
 fi
 
-# Test connectivity to home network MCP servers
+# Test connectivity to home network MCP executor
 echo "" >&2
 echo "=== Testing Home Network Connectivity ===" >&2
 
-MCP_AGGREGATOR="https://mcp-aggregator.local.jbmurphy.com"
+MCP_EXECUTOR="https://mcp-executor.local.jbmurphy.com"
 
-if curl -s --max-time 10 "$MCP_AGGREGATOR/health" > /dev/null 2>&1; then
-    echo "✓ MCP Aggregator reachable" >&2
-    TOOL_COUNT=$(curl -s --max-time 10 "$MCP_AGGREGATOR/mcp/list_tools" 2>/dev/null | jq 'length' 2>/dev/null || echo "?")
+if curl -s --max-time 10 "$MCP_EXECUTOR/health" > /dev/null 2>&1; then
+    echo "✓ MCP Executor reachable" >&2
+    TOOL_COUNT=$(curl -s --max-time 10 "$MCP_EXECUTOR/mcp/list_tools" 2>/dev/null | jq 'length' 2>/dev/null || echo "?")
     echo "  Tools available: $TOOL_COUNT" >&2
 else
-    echo "✗ MCP Aggregator not reachable" >&2
+    echo "✗ MCP Executor not reachable" >&2
     echo "  Make sure *.local.jbmurphy.com is in your network allowlist" >&2
 fi
 

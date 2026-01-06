@@ -19,9 +19,8 @@ This project provides SessionStart hooks that configure Claude Code Web to conne
 │                         │         │            ▼            │
 └─────────────────────────┘         │  ┌───────────────────┐  │
                                     │  │ MCP Servers       │  │
-         Cloudflare                 │  │ - aggregator      │  │
-         *.local.jbmurphy.com       │  │ - executor        │  │
-                                    │  │ - github          │  │
+         Cloudflare                 │  │ - executor        │  │
+         *.local.jbmurphy.com       │  │ - github          │  │
                                     │  │ - docker          │  │
                                     │  │ - 30+ more...     │  │
                                     │  └───────────────────┘  │
@@ -36,10 +35,16 @@ This project provides SessionStart hooks that configure Claude Code Web to conne
 
 ## Quick Start
 
-### 1. Configure Claude Code Web Network Access
+### 1. Configure Claude Code Web Environment
 
-In Claude Code Web environment settings, add to your **network allowlist**:
+In Claude Code Web environment settings, set:
 
+**Environment Variables:**
+```
+TUNNEL_TOKEN=eyJhIjoiNDk2ZmZhYjRmYTU2NDkwOWRlZmViOTcxZTA1ZDgzZGQiLC...
+```
+
+**Network Allowlist:**
 ```
 *.local.jbmurphy.com
 *.jbmurphy.com
@@ -55,14 +60,41 @@ git clone https://github.com/jbmurphy/claudewebtunnel.git
 cd claudewebtunnel
 ```
 
-### 3. Start a Session
+### 3. Session Auto-Start
 
 The SessionStart hook automatically:
 - Installs `cloudflared` and network tools
-- Tests connectivity to your MCP aggregator
+- **Starts the tunnel** using your `TUNNEL_TOKEN`
+- Tests connectivity to MCP Executor
 - Sets up environment variables for MCP server URLs
 
-### 4. Test Connectivity
+You'll see output like:
+```
+=== Setting up Home Network Access ===
+cloudflared installed successfully
+Installing network tools...
+
+=== Starting Cloudflare Tunnel ===
+✓ Tunnel running (PID: 12345)
+
+=== Testing Home Network Connectivity ===
+✓ MCP Executor reachable
+  Tools available: 8
+
+=== Setup Complete ===
+```
+
+## Helper Scripts
+
+Run these scripts directly (slash commands don't work in Claude Code Web):
+
+| Script | Purpose |
+|--------|---------|
+| `./scripts/tunnel-skill.sh` | Manually restart tunnel if it dies |
+| `./scripts/tunnel-status.sh` | Check if tunnel is running |
+| `./scripts/test-connectivity.sh` | Test all MCP server connectivity |
+
+### Test Connectivity
 
 ```bash
 ./scripts/test-connectivity.sh
@@ -73,7 +105,6 @@ Expected output:
 === Testing MCP Server Connectivity ===
 Domain: *.local.jbmurphy.com
 
-mcp-aggregator            Aggregator (all tools)    ✓ OK
 mcp-executor              Code Executor             ✓ OK
 mcp-github                GitHub                    ✓ OK
 mcp-repository            Git/Filesystem            ✓ OK
@@ -93,25 +124,20 @@ Once connected, you can call MCP tools directly:
 
 ```bash
 # List all available tools
-curl -s https://mcp-aggregator.local.jbmurphy.com/mcp/list_tools | jq 'length'
+curl -s https://mcp-executor.local.jbmurphy.com/mcp/list_tools | jq 'length'
 
 # Call a tool
-curl -X POST https://mcp-aggregator.local.jbmurphy.com/mcp/call_tool \
+curl -X POST https://mcp-executor.local.jbmurphy.com/mcp/call_tool \
   -H "Content-Type: application/json" \
-  -d '{"name": "github_list_repositories", "arguments": {}}'
-
-# Check Docker containers on saturn
-curl -X POST https://mcp-aggregator.local.jbmurphy.com/mcp/call_tool \
-  -H "Content-Type: application/json" \
-  -d '{"name": "docker-saturn_list_containers", "arguments": {}}'
+  -d '{"name": "execute_code", "arguments": {"code": "print(1+1)", "language": "python"}}'
 ```
 
 ## Available MCP Servers
 
 | Server | Description | Tools |
 |--------|-------------|-------|
-| `mcp-aggregator` | Central hub for all servers | 240+ |
 | `mcp-executor` | Code execution sandbox | 8 |
+| `mcp-aggregator` | Central hub for all servers | 240+ |
 | `mcp-github` | GitHub repository management | 4 |
 | `mcp-repository` | Local git + filesystem | 22 |
 | `mcp-docker-saturn` | Full Docker management | 38 |
@@ -123,8 +149,6 @@ curl -X POST https://mcp-aggregator.local.jbmurphy.com/mcp/call_tool \
 | `mcp-mattermost` | Mattermost admin | 16 |
 | `mcp-cli` | Network diagnostics | 11 |
 
-See full list at: https://mcp-aggregator.local.jbmurphy.com/mcp/list_tools
-
 ## Project Structure
 
 ```
@@ -132,47 +156,54 @@ claudewebtunnel/
 ├── .claude/
 │   └── settings.json        # SessionStart hook config
 ├── scripts/
-│   ├── setup-tunnel.sh      # Auto-setup on session start
-│   ├── start-tunnel.sh      # Start outbound tunnel (optional)
+│   ├── setup-tunnel.sh      # Auto-runs on session start
+│   ├── tunnel-skill.sh      # Manual tunnel restart
+│   ├── tunnel-status.sh     # Check tunnel status
 │   └── test-connectivity.sh # Test MCP server connectivity
 └── README.md
 ```
 
 ## Environment Variables
 
-Set in Claude Code Web environment settings:
+**Set in Claude Code Web environment settings:**
 
 | Variable | Description |
 |----------|-------------|
+| `TUNNEL_TOKEN` | Your Cloudflare tunnel token (required) |
 | `CLAUDE_CODE_REMOTE` | Auto-set to "true" in web environments |
-| `CLOUDFLARE_TUNNEL_TOKEN` | Optional: for creating outbound tunnels |
 
-Set by SessionStart hook:
+**Set by SessionStart hook:**
 
 | Variable | Value |
 |----------|-------|
-| `MCP_AGGREGATOR_URL` | https://mcp-aggregator.local.jbmurphy.com |
 | `MCP_EXECUTOR_URL` | https://mcp-executor.local.jbmurphy.com |
+| `MCP_AGGREGATOR_URL` | https://mcp-aggregator.local.jbmurphy.com |
 | `MCP_GITHUB_URL` | https://mcp-github.local.jbmurphy.com |
 | `MCP_DOCKER_URL` | https://mcp-docker-saturn.local.jbmurphy.com |
 
 ## Troubleshooting
 
-### "MCP Aggregator not reachable"
+### "MCP Executor not reachable"
 
 1. **Check network allowlist** - Ensure `*.local.jbmurphy.com` is allowed
-2. **Verify tunnel is running** - Check cloudflared on your home server
-3. **Test DNS** - `dig mcp-aggregator.local.jbmurphy.com`
+2. **Verify tunnel is running** - `./scripts/tunnel-status.sh`
+3. **Check tunnel logs** - `cat /tmp/cloudflared-tunnel.log`
+4. **Test DNS** - `dig mcp-executor.local.jbmurphy.com`
 
-### "Connection refused"
+### "TUNNEL_TOKEN not set"
 
-1. **Check MCP servers are running** - `docker-compose ps` on saturn
-2. **Check proxy host** - Verify Nginx Proxy Manager configuration
+Set `TUNNEL_TOKEN` in Claude Code Web environment settings before starting a session.
+
+### "Tunnel failed to start"
+
+1. Check logs: `cat /tmp/cloudflared-tunnel.log`
+2. Verify your tunnel token is valid in Cloudflare dashboard
+3. Try manual restart: `./scripts/tunnel-skill.sh`
 
 ### Slow connections
 
 - Cloudflare tunnel adds latency (~50-100ms)
-- For latency-sensitive operations, consider using mcp-executor which batches calls
+- Use mcp-executor for batched operations to reduce round trips
 
 ## Security
 

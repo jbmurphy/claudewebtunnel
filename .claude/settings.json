@@ -12,5 +12,19 @@
         ]
       }
     ]
+  },
+  "skills": {
+    "start-tunnel": {
+      "description": "Start a Cloudflare tunnel to expose a local port. Usage: /start-tunnel [port]",
+      "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/tunnel-skill.sh"
+    },
+    "test-mcp": {
+      "description": "Test connectivity to home network MCP servers",
+      "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/test-connectivity.sh"
+    },
+    "tunnel-status": {
+      "description": "Check if tunnel is running and show URL",
+      "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/tunnel-status.sh"
+    }
   }
 }
